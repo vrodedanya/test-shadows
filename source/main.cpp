@@ -69,7 +69,7 @@ private:
 	bool isVisible;
 	
 public:
-	SDL_Point collision;	
+	std::vector<SDL_Point> light_src;
 
 	Box(const int& w, const int& h)
 	{
@@ -83,6 +83,15 @@ public:
 	SDL_Rect& get_rect(){return rect;}
 
 	void set_visible(){isVisible = true;}
+
+	void add_light(const SDL_Point& point)
+	{
+		for (auto& item : light_src)
+		{
+			if (item.x == point.x && item.y == point.y) return;
+		}
+		light_src.push_back(point);
+	}
 
 	void randomize_coords()
 	{
@@ -98,14 +107,20 @@ public:
 			{
 				for (int x = rect.x ; x < rect.x + rect.w ; x++)
 				{
-					double dist = sqrt(pow(x - collision.x, 2) + pow(y - collision.y, 2));
-					int color = 255.0 / (1.0 + double (2 / 50) * dist + (1 / pow (50, 2)) * dist * dist); 
+					int color = 0;
+					for (auto& item : light_src)
+					{
+						double dist = sqrt(pow(x - item.x, 2) + pow(y - item.y, 2));
+						color += 255.0 / (1.0 + double (2 / 50) * dist + (1 / pow (50, 2)) * dist * dist); 
+					}
+					color /= light_src.size();
 					SDL_SetRenderDrawColor(renderer, color, color, color, 0);
 					SDL_RenderDrawPoint(renderer, x, y);
 				}
 			}
 		}
 		isVisible = false;
+		light_src.erase(light_src.begin(), light_src.end());
 	}
 	bool has_intersection(const SDL_Rect& r)
 	{
@@ -137,7 +152,7 @@ public:
 			if (SDL_PointInRect(&point, &item->get_rect()))
 			{
 				item->set_visible();
-				item->collision = SDL_Point({x, y});
+				item->add_light(SDL_Point({x, y}));
 				return true;
 			}
 		}
@@ -152,7 +167,6 @@ public:
 		{
 			SDL_Rect buf = item->get_rect();
 			int dist = sqrt(pow (buf.x + buf.w / 2 - x, 2) + pow (buf.y + buf.h / 2 - y,2));
-			if (dist > 300) continue;
 			SDL_Point points[4];
 			points[0].x = buf.x;
 			points[0].y = buf.y;
@@ -175,7 +189,7 @@ public:
 				{
 					xpos += x_shift;
 					ypos += y_shift;
-					SDL_Point point{xpos,ypos};
+					SDL_Point point{static_cast<int>(xpos), static_cast<int>(ypos)};
 					if (check(point, boxes))
 					{
 						break;
@@ -227,6 +241,7 @@ int main()
 	}
 
 	Light light(event.motion.x, event.motion.y);
+	Light test(WINDOW_W / 2, WINDOW_H / 2);
 
 	while (isWork)
 	{
@@ -256,6 +271,7 @@ int main()
 
 
 		light.calculate(renderer, boxes);
+		test.calculate(renderer, boxes);
 		SDL_RenderPresent(renderer);
 	}
 
